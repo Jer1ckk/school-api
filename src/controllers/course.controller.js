@@ -90,6 +90,68 @@ export const getAllCourses = async (req, res) => {
 
 /**
  * @swagger
+ * /courses:
+ *   get:
+ *     summary: Get all courses (advanced)
+ *     tags: [Courses]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10 }
+ *         description: Number of items per page
+ *       - in: query
+ *         name: sort
+ *         schema: { type: string, enum: [asc, desc], default: asc }
+ *         description: Sort order by created time
+ *       - in: query
+ *         name: populate
+ *         schema: { type: string }
+ *         description: Comma-separated related models to include (e.g., Teacher,Student)
+ *     responses:
+ *       200:
+ *         description: List of courses
+ */
+export const getAllCoursesAdvanced = async (req, res) => {
+    const limit = parseInt(req.query.limit) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const sort = req.query.sort === 'desc' ? 'DESC' : 'ASC';
+    const populate = req.query.populate;
+
+    let include = [];
+    if (populate) {
+        const relations = populate.split(',').map(r => r.trim());
+        relations.forEach(rel => {
+            if (db[rel]) include.push(db[rel]);
+        });
+    }
+
+    try {
+        const total = await db.Course.count();
+        const courses = await db.Course.findAll({
+            limit,
+            offset: (page - 1) * limit,
+            order: [['createdAt', sort]],
+            include
+        });
+        res.json({
+            meta: {
+                totalItems: total,
+                page,
+                totalPages: Math.ceil(total / limit),
+            },
+            data: courses,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * @swagger
  * /courses/{id}:
  *   get:
  *     summary: Get a course by ID
